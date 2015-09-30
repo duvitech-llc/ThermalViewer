@@ -1,5 +1,6 @@
 package com.d3engineering.thermalviewer;
 
+import android.content.res.Configuration;
 import android.graphics.PixelFormat;
 import android.os.Handler;
 import android.os.Message;
@@ -8,6 +9,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.ViewGroup;
 import android.widget.Toast;
 
 import org.videolan.libvlc.EventHandler;
@@ -54,6 +56,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         holder = mSurface.getHolder();
         holder.addCallback(this);
 
+
         // Create a new media player
         try {
             libvlc = LibVLC.getInstance();
@@ -78,6 +81,45 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         }
     }
 
+    private void setSize(int width, int height) {
+        mVideoWidth = width;
+        mVideoHeight = height;
+        if (mVideoWidth * mVideoHeight <= 1)
+            return;
+
+        // get screen size
+        int w = 1024;
+        int h = 768;
+
+        // getWindow().getDecorView() doesn't always take orientation into
+        // account, we have to correct the values
+        boolean isPortrait = getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT;
+        if (w > h && isPortrait || w < h && !isPortrait) {
+            int i = w;
+            w = h;
+            h = i;
+        }
+
+        float videoAR = (float) mVideoWidth / (float) mVideoHeight;
+        float screenAR = (float) w / (float) h;
+
+        if (screenAR < videoAR)
+            h = (int) (w / videoAR);
+        else
+            w = (int) (h * videoAR);
+
+        // force surface buffer size
+        if (holder != null)
+            holder.setFixedSize(mVideoWidth, mVideoHeight);
+
+        // set display size
+        ViewGroup.LayoutParams lp = mSurface.getLayoutParams();
+        lp.width = w;
+        lp.height = h;
+        mSurface.setLayoutParams(lp);
+        mSurface.invalidate();
+    }
+
     @Override
     protected void onResume() {
 
@@ -95,14 +137,22 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     }
 
     @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        setSize(mVideoWidth, mVideoHeight);
+    }
+
+    @Override
     public void surfaceCreated(SurfaceHolder holder) {
 
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        if (libvlc != null)
+        if (libvlc != null) {
             libvlc.attachSurface(holder.getSurface(), this);
+            setSize(width, height);
+        }
     }
 
     @Override
@@ -133,6 +183,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             // Player events
             if (msg.what == VideoSizeChanged) {
                 Log.d(TAG, "VideoSizeChanged X: " + msg.arg1 + " Y: " + msg.arg2);
+                player.setSize(msg.arg1, msg.arg2);
                 return;
             }
 
