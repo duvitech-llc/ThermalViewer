@@ -2,14 +2,22 @@ package com.d3engineering.thermalviewer;
 
 import android.content.res.Configuration;
 import android.graphics.PixelFormat;
+import android.graphics.Point;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Display;
+import android.view.Gravity;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.videolan.libvlc.EventHandler;
@@ -22,15 +30,23 @@ import java.lang.ref.WeakReference;
 
 public class MainActivity extends AppCompatActivity implements SurfaceHolder.Callback, IVideoPlayer {
 
+    private String              urlToStream;
+
     // Display Surface
     private SurfaceView         mSurface;
     private SurfaceHolder       holder;
+    private LinearLayout vlcContainer;
 
     // media player
     private LibVLC libvlc;
     private int                 mVideoWidth;
     private int                 mVideoHeight;
     private final static int    VideoSizeChanged = -1;
+    private FrameLayout vlcOverlay;
+    private TextView overlayTitle;
+    private Handler             handlerOverlay;
+    private Runnable            runnableOverlay;
+
 
     private void releasePlayer() {
         EventHandler.getInstance().removeHandler(mHandler);
@@ -51,14 +67,34 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // set to D3 camera address
+        urlToStream = "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov";
+
+        // VLC
+        vlcContainer = (LinearLayout) findViewById(R.id.vlc_container);
         mSurface = (SurfaceView) findViewById(R.id.vlc_surface);
 
-        holder = mSurface.getHolder();
-        holder.addCallback(this);
+        // OVERLAY
+        vlcOverlay = (FrameLayout) findViewById(R.id.vlc_overlay);
+        overlayTitle = (TextView) findViewById(R.id.vlc_overlay_title);
+        overlayTitle.setText("rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov");
 
+        // AUTOSTART
+        playMovie();
+    }
 
-        // Create a new media player
+    private void createPlayer(String media) {
+        releasePlayer();
+        setupControls();
         try {
+            if (media.length() > 0) {
+                Toast toast = Toast.makeText(this, media, Toast.LENGTH_LONG);
+                toast.setGravity(Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL, 0,
+                        0);
+                toast.show();
+            }
+
+            // Create a new media player
             libvlc = LibVLC.getInstance();
             libvlc.setHardwareAcceleration(LibVLC.HW_ACCELERATION_FULL);
             libvlc.eventVideoPlayerActivityCreated(true);
@@ -73,12 +109,72 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             holder.setKeepScreenOn(true);
             MediaList list = libvlc.getMediaList();
             list.clear();
-            list.add(new Media(libvlc, LibVLC.PathToURI("rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov")), false);
+            list.add(new Media(libvlc, LibVLC.PathToURI(media)), false);
             libvlc.playIndex(0);
-            Toast.makeText(this.getApplicationContext(), "VLC Lib Ready", Toast.LENGTH_LONG).show();
-        }catch (Exception ex){
-            Toast.makeText(this.getApplicationContext(), "Failed to create VLC Lib", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Could not create Vlc Player", Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void toggleFullscreen(boolean fullscreen)
+    {
+        WindowManager.LayoutParams attrs = getWindow().getAttributes();
+        if (fullscreen)
+        {
+            attrs.flags |= WindowManager.LayoutParams.FLAG_FULLSCREEN;
+            vlcContainer.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        }
+        else
+        {
+            attrs.flags &= ~WindowManager.LayoutParams.FLAG_FULLSCREEN;
+        }
+        getWindow().setAttributes(attrs);
+    }
+
+    private void setupControls() {
+        // OVERLAY
+        handlerOverlay = new Handler();
+        runnableOverlay = new Runnable() {
+            @Override
+            public void run() {
+                vlcOverlay.setVisibility(View.GONE);
+                toggleFullscreen(true);
+            }
+        };
+        final long timeToDisappear = 3000;
+        handlerOverlay.postDelayed(runnableOverlay, timeToDisappear);
+        vlcContainer.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                vlcOverlay.setVisibility(View.VISIBLE);
+
+                handlerOverlay.removeCallbacks(runnableOverlay);
+                handlerOverlay.postDelayed(runnableOverlay, timeToDisappear);
+            }
+        });
+    }
+
+
+    private void playMovie() {
+        if (libvlc != null && libvlc.isPlaying())
+            return ;
+        vlcContainer.setVisibility(View.VISIBLE);
+        holder = mSurface.getHolder();
+        holder.addCallback(this);
+        createPlayer(urlToStream);
+    }
+
+    private void showOverlay() {
+        vlcOverlay.setVisibility(View.VISIBLE);
+    }
+
+    private void hideOverlay() {
+        vlcOverlay.setVisibility(View.GONE);
     }
 
     private void setSize(int width, int height) {
@@ -88,8 +184,8 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             return;
 
         // get screen size
-        int w = 1024;
-        int h = 768;
+        int w = getWindow().getDecorView().getWidth();
+        int h = getWindow().getDecorView().getHeight();
 
         // getWindow().getDecorView() doesn't always take orientation into
         // account, we have to correct the values
@@ -120,6 +216,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         mSurface.invalidate();
     }
 
+
     @Override
     protected void onResume() {
 
@@ -127,13 +224,16 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        //releasePlayer();
+    }
+
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
-        if(libvlc != null) {
-            releasePlayer();
-            libvlc.destroy();
-            libvlc = null;
-        }
+        releasePlayer();
     }
 
     @Override
@@ -148,21 +248,22 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     }
 
     @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
-        if (libvlc != null) {
-            libvlc.attachSurface(holder.getSurface(), this);
-            setSize(width, height);
-        }
+    public void surfaceChanged(SurfaceHolder surfaceholder, int format, int width, int height) {
+
+        if (libvlc != null)
+            libvlc.attachSurface(surfaceholder.getSurface(), this);
     }
 
     @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
+    public void surfaceDestroyed(SurfaceHolder surfaceholder) {
 
     }
 
     @Override
-    public void setSurfaceSize(int width, int height, int visible_width, int visible_height, int sar_num, int sar_den) {
-
+    public void setSurfaceSize(int width, int height, int visible_width,
+                               int visible_height, int sar_num, int sar_den) {
+        Message msg = Message.obtain(mHandler, VideoSizeChanged, width, height);
+        msg.sendToTarget();
     }
 
     // events
