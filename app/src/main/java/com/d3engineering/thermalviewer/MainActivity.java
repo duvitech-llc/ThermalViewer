@@ -143,7 +143,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             @Override
             public void run() {
                 vlcOverlay.setVisibility(View.GONE);
-                toggleFullscreen(true);
+                toggleFullscreen(false);
             }
         };
         final long timeToDisappear = 3000;
