@@ -142,6 +142,7 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
             list.clear();
             list.add(new Media(libvlc, LibVLC.PathToURI(media)), false);
             libvlc.playIndex(0);
+
         } catch (Exception e) {
             Toast.makeText(this, "Could not create Vlc Player", Toast.LENGTH_LONG).show();
         }
@@ -252,12 +253,15 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     protected void onResume() {
         super.onResume();
         Log.d(TAG, "On Resume");
+        if(libvlc != null)
+            libvlc.playIndex(0);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        releasePlayer();
+        if(libvlc != null)
+            libvlc.stop();
     }
 
 
