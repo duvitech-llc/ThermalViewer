@@ -19,8 +19,10 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -52,6 +54,8 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
     private Handler             handlerOverlay;
     private Runnable            runnableOverlay;
 
+    private Button btnSendReticle;
+    private Spinner cbReticle;
 
     private void releasePlayer() {
         EventHandler.getInstance().removeHandler(mHandler);
@@ -109,6 +113,18 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         vlcOverlay = (FrameLayout) findViewById(R.id.vlc_overlay);
         overlayTitle = (TextView) findViewById(R.id.vlc_overlay_title);
         overlayTitle.setText("rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov");
+
+        // COMMAND BUTTONS
+        btnSendReticle = (Button)findViewById(R.id.btnReticleSend);
+        btnSendReticle.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // get selected reticle id and send to stack;
+                Toast.makeText(getBaseContext(), "Sent Reticle Command", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        cbReticle = (Spinner)findViewById(R.id.cbReticle);
 
         // AUTOSTART
         playMovie();

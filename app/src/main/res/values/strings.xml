@@ -47,6 +47,14 @@
         <item>360</item>
         <item>-1</item>
     </string-array>
+    <string-array name="spinner_reticle_entries">
+        <item>Reticle A</item>
+        <item>Reticle B</item>
+        <item>Reticle C</item>
+        <item>Reticle D</item>
+        <item>Reticle E</item>
+    </string-array>
+
 
     <string name="pref_title_system_sync_settings">System sync settings</string>
 
